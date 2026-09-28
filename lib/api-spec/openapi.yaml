@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: profile
+    description: Authenticated user profile operations
+  - name: projects
+    description: Project operations
+  - name: dashboard
+    description: Dashboard summary operations
 paths:
   /healthz:
     get:
@@ -24,7 +30,186 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getCurrentProfile
+      tags: [profile]
+      summary: Get the current user's profile
+      security:
+        - clerkSession: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      operationId: updateCurrentProfile
+      tags: [profile]
+      summary: Update the current user's profile
+      security:
+        - clerkSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects visible to the current user
+      security:
+        - clerkSession: []
+      responses:
+        "200":
+          description: Projects visible to the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project owned by the current user
+      security:
+        - clerkSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project the current user can access
+      security:
+        - clerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update an owned project
+      security:
+        - clerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete an owned project
+      security:
+        - clerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204":
+          description: Project deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get project summary metrics for the current user
+      security:
+        - clerkSession: []
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      description: Project identifier
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  securitySchemes:
+    clerkSession:
+      type: apiKey
+      in: cookie
+      name: __session
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +218,127 @@ components:
           type: string
       required:
         - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        fullName:
+          type: ["string", "null"]
+        email:
+          type: string
+          format: email
+        avatarUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, createdAt]
+    ProfileUpdate:
+      type: object
+      properties:
+        fullName:
+          type: ["string", "null"]
+          maxLength: 120
+        avatarUrl:
+          type: ["string", "null"]
+          format: uri
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        ownerId:
+          type: string
+        startDate:
+          type: ["string", "null"]
+          format: date
+        deadline:
+          type: ["string", "null"]
+          format: date
+        status:
+          type: string
+          enum: [planning, active, at_risk, completed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, ownerId, status, createdAt, updatedAt]
+    ProjectInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: ["string", "null"]
+          maxLength: 2000
+        startDate:
+          type: ["string", "null"]
+          format: date
+        deadline:
+          type: ["string", "null"]
+          format: date
+        status:
+          type: string
+          enum: [planning, active, at_risk, completed]
+      required: [name]
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: ["string", "null"]
+          maxLength: 2000
+        startDate:
+          type: ["string", "null"]
+          format: date
+        deadline:
+          type: ["string", "null"]
+          format: date
+        status:
+          type: string
+          enum: [planning, active, at_risk, completed]
+    DashboardSummary:
+      type: object
+      properties:
+        activeProjects:
+          type: integer
+        tasksDueSoon:
+          type: integer
+        overdueTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        blockedTasks:
+          type: integer
+        recentProjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+      required:
+        - activeProjects
+        - tasksDueSoon
+        - overdueTasks
+        - completedTasks
+        - blockedTasks
+        - recentProjects
 

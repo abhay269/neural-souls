@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Neural Souls"
+description = "An AI project intelligence platform for student, hackathon, and small software teams to manage projects, understand delivery risk, and decide what to do next."
+version = "1.0.0"
+id = "artifacts/neural-souls"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22634
+
+[services.development]
+run = "pnpm --filter @workspace/neural-souls run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/neural-souls", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/neural-souls/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22634"
+BASE_PATH = "/"
